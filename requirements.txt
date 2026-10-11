@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+scikit-learn
+xgboost
+plotly
+joblib
+
+google-cloud-bigquery
+db-dtypes
+google-auth
+pyarrow

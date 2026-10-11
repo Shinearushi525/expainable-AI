@@ -1,0 +1,8 @@
+# secrets - NEVER commit
+*.json
+.streamlit/secrets.toml
+# regenerated automatically on first launch
+*.pkl
+model_leaderboard.csv
+__pycache__/
+*.pyc
