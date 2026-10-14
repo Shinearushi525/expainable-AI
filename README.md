@@ -13,7 +13,6 @@
 ![BigQuery](https://img.shields.io/badge/Google%20BigQuery-Warehouse-4285f4?logo=googlebigquery&logoColor=white)
 ![Plotly](https://img.shields.io/badge/Plotly-Charts-3f4f75?logo=plotly&logoColor=white)
 
-**[🚀 Live App](https://YOUR-APP-NAME.streamlit.app)** &nbsp;·&nbsp; **[📊 Results](#-results)** &nbsp;·&nbsp; **[⚙️ Run it yourself](#%EF%B8%8F-run-it-yourself)** &nbsp;·&nbsp; **[🧱 Project structure](#-project-structure)**
 
 </div>
 
