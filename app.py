@@ -11,7 +11,7 @@ Streamlit app with 6 tabs:
     3. EDA Dashboard      - explore return patterns in the dataset
     4. What-If Explorer   - sliders showing live return risk and advice
     5. Returns Map        - India map colored by city return rate
-    6. BigQuery Pipeline  - warehouse layers, plus live data when credentials are set
+    6. BigQuery Pipeline  - how the data flows through the BigQuery warehouse layers
 
 Run locally:
     python train_model.py     # produces best_model.pkl, encoders.pkl (optional)
@@ -470,73 +470,3 @@ with tab6:
         | **mart** | `fact_predictions` | Return probability and risk tier per order, written by `predict.py` |
         """
     )
-
-    try:
-        _secrets_info = dict(st.secrets["gcp_service_account"]) if "gcp_service_account" in st.secrets else None
-    except Exception:
-        _secrets_info = None
-    has_creds = bool(
-        _secrets_info
-        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    )
-
-    if has_creds:
-        import bq_live
-
-        @st.cache_data(ttl=600, show_spinner="Running SQL in BigQuery...")
-        def load_bq_live(project, info):
-            client = bq_live.get_client(project, info)
-            return bq_live.fetch_all(client, project)
-
-        st.markdown("---")
-        st.markdown("### 🔴 Live from BigQuery")
-        if st.button("🔄 Refresh from BigQuery"):
-            load_bq_live.clear()
-
-        try:
-            kpis, by_cat, scored = load_bq_live(PROJECT_ID, _secrets_info)
-        except Exception as e:
-            st.warning(
-                "Could not read the BigQuery tables. Check that the key is valid and that "
-                f"load_to_bigquery.py, transform.sql and predict.py have been run.\n\nDetails: {e}"
-            )
-        else:
-            scored = add_decision_columns(scored)
-            n_worth = int(scored["worth_intervening"].sum())
-            savings = scored.loc[scored["worth_intervening"], "net_benefit_if_acted"].sum()
-            high_risk = int((scored["risk_tier"] == "HIGH").sum())
-
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Orders in warehouse", f"{int(kpis.loc[0, 'total_orders']):,}")
-            k2.metric("Actual return rate", f"{float(kpis.loc[0, 'return_rate_pct']):.1f}%")
-            k3.metric("Worth intervening", f"{n_worth:,}")
-            k4.metric("Potential savings", f"₹{savings:,.0f}")
-
-            left, right = st.columns(2)
-            with left:
-                fig_bq_cat = px.bar(
-                    by_cat, x="product_category", y="return_rate_pct",
-                    labels={"return_rate_pct": "Return rate (%)", "product_category": ""},
-                    title="Return rate by category (computed in BigQuery)",
-                    color_discrete_sequence=["#1f6fd8"],
-                )
-                st.plotly_chart(fig_bq_cat, use_container_width=True)
-            with right:
-                tiers = scored["risk_tier"].value_counts().reindex(["LOW", "MEDIUM", "HIGH"]).fillna(0).reset_index()
-                tiers.columns = ["risk_tier", "orders"]
-                fig_bq_tier = px.bar(
-                    tiers, x="risk_tier", y="orders", color="risk_tier",
-                    color_discrete_map={"LOW": "#22c55e", "MEDIUM": "#f59e0b", "HIGH": "#ef4444"},
-                    title="Orders by predicted risk tier",
-                )
-                fig_bq_tier.update_layout(showlegend=False)
-                st.plotly_chart(fig_bq_tier, use_container_width=True)
-
-            st.markdown("#### Top orders worth acting on")
-            top = (scored[scored["worth_intervening"]]
-                   .sort_values("net_benefit_if_acted", ascending=False)
-                   .head(20)[["order_id", "product_category", "product_price", "discount_percent",
-                              "delivery_days", "predicted_return_probability", "risk_tier",
-                              "net_benefit_if_acted"]])
-            st.dataframe(top, use_container_width=True, hide_index=True)
